@@ -714,6 +714,7 @@ function showResult(p, originalMsg) {
   }
 
   html += `<button class="btn btn-secondary" onclick="copyText()">📋 複製整理後資訊</button>`;
+  html += `<button class="btn btn-secondary" style="margin-top:6px;font-size:11px;opacity:0.6;" onclick="debugICS()">🔧 診斷模式</button>`;
 
   document.getElementById('resultContent').innerHTML = html;
   document.getElementById('result').classList.add('show');
@@ -730,6 +731,29 @@ function generateICS() {
   const ics = toICS(summary, _startDate, endDate, loc, desc);
   const dateStr = _startDate.toISOString().slice(0,10);
   downloadICS(`交收_${dateStr}.ics`, ics);
+}
+
+function debugICS() {
+  const lines = [];
+  lines.push('UA: ' + navigator.userAgent.slice(0,80));
+  lines.push('_startDate: ' + (_startDate ? _startDate.toString() : 'NULL'));
+  lines.push('_parsed item: ' + (_parsed ? _parsed.item : 'NULL'));
+  lines.push('_parsed time: ' + (_parsed ? _parsed.time_resolved : 'NULL'));
+  lines.push('_parsed date: ' + (_parsed ? _parsed.date_resolved : 'NULL'));
+  if (_startDate && _parsed) {
+    try {
+      const endDate = new Date(_startDate.getTime() + 30 * 60000);
+      const ics = toICS('TEST', _startDate, endDate, 'TEST LOC', 'TEST DESC');
+      lines.push('ICS length: ' + ics.length);
+      lines.push('ICS preview: ' + ics.slice(0,100));
+      const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      lines.push('Blob URL: ' + url);
+    } catch(e) {
+      lines.push('ERROR: ' + e.message);
+    }
+  }
+  alert(lines.join('\n'));
 }
 
 function copyText() {
