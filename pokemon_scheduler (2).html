@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>交收提醒工具</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+HK:wght@300;400;500;700;900&family=Space+Mono:wght@400;700&display=swap');
+
+  :root {
+    --red: #E3350D;
+    --yellow: #FFDE00;
+    --dark: #1a1a2e;
+    --darker: #0f0f1a;
+    --card: #1e1e32;
+    --border: #2e2e4a;
+    --text: #e8e8f0;
+    --muted: #7070a0;
+    --green: #2ecc71;
+    --blue: #3498db;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--darker);
+    color: var(--text);
+    font-family: 'Noto Sans HK', sans-serif;
+    min-height: 100vh;
+    padding: 20px;
+  }
+
+  /* Pokeball BG pattern */
+  body::before {
+    content: '';
+    position: fixed;
+    top: -200px; right: -200px;
+    width: 500px; height: 500px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 50% 50%, transparent 38%, var(--red) 38%, var(--red) 45%, #111 45%, #111 55%, var(--yellow) 55%, var(--yellow) 62%, transparent 62%);
+    opacity: 0.04;
+    pointer-events: none;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 32px;
+    padding-top: 8px;
+  }
+
+  .logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+
+  .pokeball-icon {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: linear-gradient(180deg, var(--red) 50%, #222 50%);
+    border: 3px solid #444;
+    position: relative;
+    flex-shrink: 0;
+  }
+  .pokeball-icon::before {
+    content: '';
+    position: absolute;
+    left: 50%; top: 50%;
+    transform: translate(-50%, -50%);
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: #eee;
+    border: 2px solid #444;
+  }
+  .pokeball-icon::after {
+    content: '';
+    position: absolute;
+    left: 0; top: 50%;
+    transform: translateY(-50%);
+    width: 100%; height: 2.5px;
+    background: #444;
+  }
+
+  h1 {
+    font-size: 22px;
+    font-weight: 900;
+    letter-spacing: -0.5px;
+    color: var(--yellow);
+  }
+
+  .subtitle {
+    font-size: 12px;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    letter-spacing: 1px;
+  }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+
+  .card-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    font-family: 'Space Mono', monospace;
+  }
+
+  textarea {
+    width: 100%;
+    background: var(--darker);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-family: 'Noto Sans HK', sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    padding: 14px;
+    resize: vertical;
+    min-height: 130px;
+    transition: border-color 0.2s;
+    outline: none;
+  }
+  textarea:focus { border-color: var(--yellow); }
+  textarea::placeholder { color: var(--muted); }
+
+  .btn {
+    width: 100%;
+    padding: 15px;
+    border-radius: 12px;
+    border: none;
+    font-family: 'Noto Sans HK', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.5px;
+  }
+
+  .btn-primary {
+    background: var(--yellow);
+    color: #1a1a00;
+  }
+  .btn-primary:hover:not(:disabled) { background: #ffe833; transform: translateY(-1px); }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+  .btn-secondary {
+    background: transparent;
+    color: var(--text);
+    border: 1.5px solid var(--border);
+    margin-top: 10px;
+    font-size: 13px;
+  }
+  .btn-secondary:hover { border-color: var(--yellow); color: var(--yellow); }
+
+  .btn-green {
+    background: var(--green);
+    color: #fff;
+    margin-top: 10px;
+    font-size: 14px;
+  }
+  .btn-green:hover { background: #27ae60; transform: translateY(-1px); }
+
+  .btn-blue {
+    background: var(--blue);
+    color: #fff;
+    margin-top: 10px;
+    font-size: 14px;
+  }
+  .btn-blue:hover { background: #2980b9; transform: translateY(-1px); }
+
+  /* Loading */
+  .loading {
+    display: none;
+    text-align: center;
+    padding: 28px 0;
+  }
+  .loading.show { display: block; }
+
+  .pokeball-spin {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    background: linear-gradient(180deg, var(--red) 50%, #333 50%);
+    border: 3px solid #555;
+    margin: 0 auto 14px;
+    animation: spin 0.8s linear infinite;
+    position: relative;
+  }
+  .pokeball-spin::before {
+    content: '';
+    position: absolute;
+    left: 50%; top: 50%;
+    transform: translate(-50%, -50%);
+    width: 11px; height: 11px;
+    border-radius: 50%;
+    background: #eee;
+    border: 2px solid #555;
+  }
+  .pokeball-spin::after {
+    content: '';
+    position: absolute;
+    left: 0; top: 50%;
+    transform: translateY(-50%);
+    width: 100%; height: 2.5px;
+    background: #555;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .loading p {
+    color: var(--muted);
+    font-size: 13px;
+    font-family: 'Space Mono', monospace;
+  }
+
+  /* Result */
+  .result { display: none; }
+  .result.show { display: block; }
+
+  .result-item {
+    background: var(--darker);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+  .result-item.success { border-color: var(--green); }
+  .result-item.warning { border-color: var(--yellow); }
+
+  .result-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  .result-row:last-child { margin-bottom: 0; }
+
+  .result-icon {
+    font-size: 16px;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .result-key {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    white-space: nowrap;
+    min-width: 52px;
+  }
+
+  .result-val {
+    font-size: 14px;
+    color: var(--text);
+    font-weight: 500;
+    line-height: 1.5;
+  }
+
+  .tag {
+    display: inline-block;
+    font-size: 10px;
+    font-family: 'Space Mono', monospace;
+    padding: 2px 8px;
+    border-radius: 20px;
+    margin-left: 8px;
+    vertical-align: middle;
+    font-weight: 700;
+  }
+  .tag-green { background: rgba(46,204,113,0.15); color: var(--green); }
+  .tag-yellow { background: rgba(255,222,0,0.15); color: var(--yellow); }
+
+  .note-box {
+    background: rgba(255,222,0,0.06);
+    border: 1px solid rgba(255,222,0,0.2);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 12.5px;
+    color: #c0c080;
+    line-height: 1.6;
+    margin-top: 12px;
+  }
+
+  .error-box {
+    background: rgba(227,53,13,0.1);
+    border: 1px solid rgba(227,53,13,0.3);
+    border-radius: 10px;
+    padding: 14px;
+    font-size: 13px;
+    color: #ff7055;
+    line-height: 1.5;
+    margin-top: 12px;
+  }
+
+  .divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 16px 0;
+  }
+
+  .how-it-works {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+    margin-top: 8px;
+  }
+  .step {
+    text-align: center;
+    padding: 12px 8px;
+    background: var(--darker);
+    border-radius: 10px;
+  }
+  .step-num {
+    font-size: 20px;
+    margin-bottom: 4px;
+  }
+  .step-text {
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.4;
+  }
+
+  .platform-chips {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 6px;
+  }
+  .chip {
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    background: rgba(255,255,255,0.06);
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="pokeball-icon"></div>
+    <h1>交收提醒工具</h1>
+  </div>
+  <p class="subtitle">Pokémon 代購 · 自動解析 · iPhone 日曆</p>
+</header>
+
+<!-- How it works -->
+<div class="card">
+  <div class="card-label">使用方法</div>
+  <div class="how-it-works">
+    <div class="step">
+      <div class="step-num">📋</div>
+      <div class="step-text">複製客人訊息貼入下方</div>
+    </div>
+    <div class="step">
+      <div class="step-num">🤖</div>
+      <div class="step-text">AI 自動提取時間地點</div>
+    </div>
+    <div class="step">
+      <div class="step-num">📅</div>
+      <div class="step-text">下載 .ics 加入日曆</div>
+    </div>
+  </div>
+  <div class="platform-chips" style="margin-top:14px;">
+    <span class="chip">WTS</span>
+    <span class="chip">Carousell</span>
+    <span class="chip">Instagram</span>
+    <span class="chip">WhatsApp</span>
+    <span class="chip">Facebook</span>
+  </div>
+</div>
+
+<!-- Input -->
+<div class="card">
+  <div class="card-label">貼上客人訊息</div>
+  <textarea id="msgInput" placeholder="例：你好，我想買比卡超，可以星期三下午3點半在旺角站交收嗎？"></textarea>
+  <br>
+  <button class="btn btn-primary" id="parseBtn" onclick="parseMessage()">🔍 自動解析訊息</button>
+</div>
+
+<!-- Loading -->
+<div class="loading" id="loading">
+  <div class="pokeball-spin"></div>
+  <p>AI 正在解析訊息...</p>
+</div>
+
+<!-- Result -->
+<div class="result card" id="result">
+  <div class="card-label">解析結果</div>
+  <div id="resultContent"></div>
+</div>
+
+<script>
+function getNextWeekday(dayName, timeStr) {
+  const days = { '星期一':1,'星期二':2,'星期三':3,'星期四':4,'星期五':5,'星期六':6,'星期日':0,'週一':1,'週二':2,'週三':3,'週四':4,'週五':5,'週六':6,'週日':0,'Monday':1,'Tuesday':2,'Wednesday':3,'Thursday':4,'Friday':5,'Saturday':6,'Sunday':0 };
+  const today = new Date();
+  const targetDay = days[dayName];
+  if (targetDay === undefined) return null;
+  let diff = targetDay - today.getDay();
+  if (diff <= 0) diff += 7;
+  const date = new Date(today);
+  date.setDate(today.getDate() + diff);
+  if (timeStr) {
+    let [h, m] = [0, 0];
+    const t = timeStr.replace(/[：:]/g, ':');
+    const match = t.match(/(\d{1,2})[：:](\d{2})/);
+    if (match) { h = parseInt(match[1]); m = parseInt(match[2]); }
+    else {
+      const hOnly = t.match(/(\d{1,2})/);
+      if (hOnly) h = parseInt(hOnly[1]);
+    }
+    if (t.includes('下午') || t.includes('PM') || t.includes('pm')) { if (h < 12) h += 12; }
+    if (t.includes('上午') || t.includes('AM') || t.includes('am')) { if (h === 12) h = 0; }
+    date.setHours(h, m, 0, 0);
+  }
+  return date;
+}
+
+function toICS(summary, dtstart, dtend, location, description) {
+  const fmt = d => d.toISOString().replace(/[-:]/g,'').replace(/\.\d{3}/,'');
+  return [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//Pokemon Reseller//HK//ZH',
+    'BEGIN:VEVENT',
+    `DTSTART:${fmt(dtstart)}`,
+    `DTEND:${fmt(dtend)}`,
+    `SUMMARY:${summary}`,
+    `LOCATION:${location}`,
+    `DESCRIPTION:${description}`,
+    'BEGIN:VALARM',
+    'TRIGGER:-PT30M',
+    'ACTION:DISPLAY',
+    'DESCRIPTION:交收提醒 - 30分鐘後',
+    'END:VALARM',
+    'BEGIN:VALARM',
+    'TRIGGER:-PT60M',
+    'ACTION:DISPLAY',
+    'DESCRIPTION:交收提醒 - 1小時後',
+    'END:VALARM',
+    'END:VEVENT',
+    'END:VCALENDAR'
+  ].join('\r\n');
+}
+
+function downloadICS(filename, content) {
+  const blob = new Blob([content], { type: 'text/calendar;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function localParseMessage(msg) {
+  const today = new Date();
+  const result = {
+    customer: null, item: null,
+    date_raw: null, time_raw: null,
+    location: null, date_resolved: null, time_resolved: null,
+    weekday: null, confidence: 'medium', notes: null, missing: []
+  };
+
+  // ── 時間解析 ──────────────────────────────────────────
+  // 軍用時間：1700, 0930 等 (4位數字獨立出現)
+  const militaryMatch = msg.match(/\b([01]\d|2[0-3])([0-5]\d)\b/);
+  // 帶冒號：17:00, 9:30
+  const colonMatch = msg.match(/(\d{1,2})[：:](\d{2})/);
+  // 中文時間：下午3點半、下午3點、3點半、早上9點
+  const cnTimeMatch = msg.match(/(上午|下午|早上|晚上|凌晨)?(\d{1,2})點(半|(\d{1,2}分)?)?/);
+
+  let hour = null, minute = 0;
+
+  if (militaryMatch && !colonMatch) {
+    hour = parseInt(militaryMatch[1]);
+    minute = parseInt(militaryMatch[2]);
+    result.time_raw = militaryMatch[0];
+  } else if (colonMatch) {
+    hour = parseInt(colonMatch[1]);
+    minute = parseInt(colonMatch[2]);
+    result.time_raw = colonMatch[0];
+    const ampm = msg.match(/(上午|下午|早上|晚上|AM|PM|am|pm)/);
+    if (ampm) {
+      result.time_raw = ampm[0] + result.time_raw;
+      if (['下午','晚上','PM','pm'].includes(ampm[1]) && hour < 12) hour += 12;
+      if (['上午','早上','AM','am'].includes(ampm[1]) && hour === 12) hour = 0;
+    }
+  } else if (cnTimeMatch) {
+    const period = cnTimeMatch[1];
+    hour = parseInt(cnTimeMatch[2]);
+    if (cnTimeMatch[3] === '半') minute = 30;
+    else if (cnTimeMatch[4]) minute = parseInt(cnTimeMatch[4]);
+    if (period && ['下午','晚上'].includes(period) && hour < 12) hour += 12;
+    if (period && ['上午','早上','凌晨'].includes(period) && hour === 12) hour = 0;
+    if (!period && hour < 8) hour += 12; // 默認下午
+    result.time_raw = cnTimeMatch[0];
+  }
+
+  if (hour !== null) {
+    result.time_resolved = `${String(hour).padStart(2,'0')}:${String(minute).padStart(2,'0')}`;
+  } else {
+    result.missing.push('時間');
+  }
+
+  // ── 日期解析 ──────────────────────────────────────────
+  const weekdayMap = { '星期一':1,'星期二':2,'星期三':3,'星期四':4,'星期五':5,'星期六':6,'星期日':0,'星期天':0,'週一':1,'週二':2,'週三':3,'週四':4,'週五':5,'週六':6,'週日':0,'週天':0,'Monday':1,'Tuesday':2,'Wednesday':3,'Thursday':4,'Friday':5,'Saturday':6,'Sunday':0 };
+  
+  // 明天/今天/後天
+  const relDayMatch = msg.match(/今天|今日|明天|明日|後天|後日/);
+  // 星期X
+  const weekdayFound = Object.keys(weekdayMap).find(k => msg.includes(k));
+  // X月X日
+  const dateMatch = msg.match(/(\d{1,2})月(\d{1,2})[日號]/);
+  // YYYY-MM-DD or DD/MM
+  const isoMatch = msg.match(/(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+
+  let resolvedDate = null;
+
+  if (isoMatch) {
+    resolvedDate = new Date(parseInt(isoMatch[1]), parseInt(isoMatch[2])-1, parseInt(isoMatch[3]));
+    result.date_raw = isoMatch[0];
+  } else if (dateMatch) {
+    resolvedDate = new Date(today.getFullYear(), parseInt(dateMatch[1])-1, parseInt(dateMatch[2]));
+    if (resolvedDate < today) resolvedDate.setFullYear(today.getFullYear()+1);
+    result.date_raw = dateMatch[0];
+  } else if (relDayMatch) {
+    resolvedDate = new Date(today);
+    if (['明天','明日'].includes(relDayMatch[0])) resolvedDate.setDate(today.getDate()+1);
+    else if (['後天','後日'].includes(relDayMatch[0])) resolvedDate.setDate(today.getDate()+2);
+    result.date_raw = relDayMatch[0];
+  } else if (weekdayFound) {
+    const targetDay = weekdayMap[weekdayFound];
+    let diff = targetDay - today.getDay();
+    if (diff <= 0) diff += 7;
+    resolvedDate = new Date(today);
+    resolvedDate.setDate(today.getDate() + diff);
+    result.weekday = weekdayFound.startsWith('週') ? weekdayFound.replace('週','星期') : weekdayFound.startsWith('星期') ? weekdayFound : '星期' + weekdayFound;
+    result.date_raw = weekdayFound;
+  }
+
+  if (resolvedDate) {
+    const y = resolvedDate.getFullYear();
+    const mo = String(resolvedDate.getMonth()+1).padStart(2,'0');
+    const d = String(resolvedDate.getDate()).padStart(2,'0');
+    result.date_resolved = `${y}-${mo}-${d}`;
+    if (!result.weekday) {
+      result.weekday = ['星期日','星期一','星期二','星期三','星期四','星期五','星期六'][resolvedDate.getDay()];
+    }
+  } else {
+    result.missing.push('日期');
+  }
+
+  // ── 地點解析 ──────────────────────────────────────────
+  const stationPatterns = [
+    // MTR stations HK
+    /([^\s，,、。！？\n]+(?:站|地鐵站|港鐵站))/,
+    // "XX站 近/B出口" pattern
+    /([^\s，,、。\n]{2,8})(?:地鐵)?站/,
+  ];
+  let locationFound = null;
+  for (const p of stationPatterns) {
+    const m = msg.match(p);
+    if (m) { locationFound = m[0]; break; }
+  }
+  // Also look for 出口/閘口/客務
+  const exitMatch = msg.match(/[近在]?([A-Za-z\d]+(?:號)?(?:出口|閘口|月台|客務中心|大堂))/);
+  if (locationFound) {
+    result.location = exitMatch ? `${locationFound} ${exitMatch[0]}` : locationFound;
+  } else if (exitMatch) {
+    result.location = exitMatch[0];
+  } else {
+    result.missing.push('地點');
+  }
+
+  // ── 商品名稱 ──────────────────────────────────────────
+  // Remove time/date/location tokens and extract remainder as item
+  let itemStr = msg
+    .replace(/星期[一二三四五六日天]|週[一二三四五六日天]/g, '')
+    .replace(/今天|今日|明天|明日|後天|後日/g, '')
+    .replace(/\d{1,2}月\d{1,2}[日號]/g, '')
+    .replace(/[01]\d[0-5]\d/g, '')
+    .replace(/\d{1,2}[：:]\d{2}/g, '')
+    .replace(/(上午|下午|早上|晚上|凌晨)?\d{1,2}點(半|\d{0,2}分?)?/g, '')
+    .replace(/[^\s，,、。！？\n]+(?:站|地鐵站|港鐵站)/g, '')
+    .replace(/[近在]?[A-Za-z\d]+(?:號)?(?:出口|閘口|月台|客務中心|大堂)/g, '')
+    .replace(/[，,、。！？😊🙏]/g, ' ')
+    .replace(/\s+/g, ' ').trim();
+
+  // Common intro phrases to strip
+  itemStr = itemStr.replace(/^(你好|您好|hi|hello|hey|我想買|我要|想問|請問|係咪|係|可以|唔知|幫我|help me|買|想)[，,\s]*/i, '').trim();
+  itemStr = itemStr.replace(/(交收|見面|取貨|拎貨|付款|可以嗎|得唔得|ok嗎|thx|thanks|謝謝|多謝).*$/i, '').trim();
+
+  if (itemStr.length > 1) result.item = itemStr;
+  else result.missing.push('商品名稱');
+
+  // ── 備註 ──────────────────────────────────────────────
+  const notePatterns = [/[近在]([^\s，,。！？\n]{2,20}(?:出口|閘口|客務中心|月台|大堂|便利店|咖啡|麥當勞))/];
+  for (const p of notePatterns) {
+    const m = msg.match(p);
+    if (m && !result.location?.includes(m[1])) {
+      result.notes = (result.notes ? result.notes + '；' : '') + m[0];
+    }
+  }
+
+  // ── 置信度 ────────────────────────────────────────────
+  const found = [result.item, result.date_resolved, result.time_resolved, result.location].filter(Boolean).length;
+  result.confidence = found === 4 ? 'high' : found >= 2 ? 'medium' : 'low';
+
+  return result;
+}
+
+function parseMessage() {
+  const msg = document.getElementById('msgInput').value.trim();
+  if (!msg) { alert('請先貼上客人訊息'); return; }
+
+  document.getElementById('parseBtn').disabled = true;
+  document.getElementById('loading').classList.add('show');
+  document.getElementById('result').classList.remove('show');
+
+  // Small timeout to let the loading animation show
+  setTimeout(() => {
+    try {
+      const parsed = localParseMessage(msg);
+      showResult(parsed, msg);
+    } catch(err) {
+      document.getElementById('result').classList.add('show');
+      document.getElementById('resultContent').innerHTML = `<div class="error-box">⚠️ 解析時發生錯誤：${err.message}</div>`;
+    } finally {
+      document.getElementById('loading').classList.remove('show');
+      document.getElementById('parseBtn').disabled = false;
+    }
+  }, 600);
+}
+
+let _parsed = null;
+let _startDate = null;
+
+function showResult(p, originalMsg) {
+  _parsed = p;
+  _startDate = null;
+
+  const conf = p.confidence === 'high' ? '<span class="tag tag-green">確認</span>' : p.confidence === 'medium' ? '<span class="tag tag-yellow">待確認</span>' : '<span class="tag" style="background:rgba(227,53,13,0.15);color:#ff7055">不確定</span>';
+
+  let html = `<div class="result-item ${p.confidence === 'high' ? 'success' : 'warning'}">`;
+
+  if (p.customer) html += `<div class="result-row"><span class="result-icon">👤</span><span class="result-key">客人</span><span class="result-val">${p.customer}</span></div>`;
+  if (p.item) html += `<div class="result-row"><span class="result-icon">📦</span><span class="result-key">商品</span><span class="result-val">${p.item}</span></div>`;
+
+  const dateDisplay = p.date_resolved || p.date_raw || '未知';
+  const timeDisplay = p.time_resolved || p.time_raw || '未知';
+  html += `<div class="result-row"><span class="result-icon">📅</span><span class="result-key">日期</span><span class="result-val">${dateDisplay}${p.weekday ? ' (' + p.weekday + ')' : ''}</span></div>`;
+  html += `<div class="result-row"><span class="result-icon">🕐</span><span class="result-key">時間</span><span class="result-val">${timeDisplay}</span></div>`;
+  if (p.location) html += `<div class="result-row"><span class="result-icon">📍</span><span class="result-key">地點</span><span class="result-val">${p.location}</span></div>`;
+  if (p.notes) html += `<div class="result-row"><span class="result-icon">💬</span><span class="result-key">備註</span><span class="result-val">${p.notes}</span></div>`;
+
+  html += `<div class="result-row" style="margin-top:4px;"><span class="result-icon">✅</span><span class="result-key">置信度</span><span class="result-val">${conf}</span></div>`;
+  html += `</div>`;
+
+  if (p.missing && p.missing.length > 0) {
+    html += `<div class="note-box">⚠️ 以下資訊未能從訊息中提取：<strong>${p.missing.join('、')}</strong><br>建議向客人確認後再加入日曆。</div>`;
+  }
+
+  // Attempt to build date
+  let canGenICS = false;
+  if (p.date_resolved && p.time_resolved) {
+    try {
+      _startDate = new Date(`${p.date_resolved}T${p.time_resolved}:00`);
+      canGenICS = !isNaN(_startDate.getTime());
+    } catch(e) {}
+  } else if (p.weekday && p.time_raw) {
+    _startDate = getNextWeekday(p.weekday, p.time_raw);
+    canGenICS = _startDate !== null;
+  }
+
+  html += `<hr class="divider">`;
+
+  if (canGenICS) {
+    html += `<button class="btn btn-green" onclick="generateICS()">📅 下載 .ics 加入 iPhone 日曆</button>`;
+  } else {
+    html += `<div class="note-box" style="margin-top:0;">📅 無法自動生成日曆（日期或時間不完整）<br>請手動加入日曆，或向客人確認後重新解析。</div>`;
+  }
+
+  html += `<button class="btn btn-secondary" onclick="copyText()">📋 複製整理後資訊</button>`;
+
+  document.getElementById('resultContent').innerHTML = html;
+  document.getElementById('result').classList.add('show');
+}
+
+function generateICS() {
+  if (!_startDate || !_parsed) return;
+  const endDate = new Date(_startDate.getTime() + 30 * 60000);
+  const item = _parsed.item || '寶可夢商品';
+  const loc = _parsed.location || '';
+  const customer = _parsed.customer || '客人';
+  const summary = `交收 - ${item} (${customer})`;
+  const desc = `商品：${item} / 客人：${customer} / 地點：${loc}`;
+  const ics = toICS(summary, _startDate, endDate, loc, desc);
+  const dateStr = _startDate.toISOString().slice(0,10);
+  downloadICS(`交收_${dateStr}.ics`, ics);
+}
+
+function copyText() {
+  if (!_parsed) return;
+  const p = _parsed;
+  const lines = [
+    '📦 交收資訊',
+    p.customer ? `👤 客人：${p.customer}` : '',
+    p.item ? `商品：${p.item}` : '',
+    `📅 日期：${p.date_resolved || p.date_raw || '未知'}${p.weekday ? ' ('+p.weekday+')' : ''}`,
+    `🕐 時間：${p.time_resolved || p.time_raw || '未知'}`,
+    p.location ? `📍 地點：${p.location}` : '',
+    p.notes ? `💬 備註：${p.notes}` : '',
+  ].filter(Boolean).join('\n');
+  navigator.clipboard.writeText(lines).then(() => {
+    const btn = event.target;
+    btn.textContent = '✅ 已複製！';
+    setTimeout(() => btn.textContent = '📋 複製整理後資訊', 2000);
+  });
+}
+</script>
+</body>
+</html>
