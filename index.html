@@ -346,6 +346,13 @@
 </head>
 <body>
 
+<div id="chromeBanner" style="display:none;background:#E3350D;color:#fff;padding:12px 16px;border-radius:12px;margin-bottom:16px;font-size:13px;line-height:1.6;">
+  ⚠️ <strong>偵測到 Chrome 瀏覽器</strong><br>
+  加入日曆功能需要用 <strong>Safari</strong> 打開。<br>
+  請複製以下網址，貼入 Safari：<br>
+  <span id="currentUrl" style="font-family:monospace;font-size:11px;word-break:break-all;opacity:0.9;"></span><br>
+  <button onclick="copyUrl()" style="margin-top:8px;background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.4);color:#fff;padding:6px 14px;border-radius:8px;font-size:12px;cursor:pointer;">📋 複製網址</button>
+</div>
 <header>
   <div class="logo">
     <div class="pokeball-icon"></div>
@@ -368,7 +375,7 @@
     </div>
     <div class="step">
       <div class="step-num">📅</div>
-      <div class="step-text">下載 .ics 加入日曆</div>
+      <div class="step-text">一鍵加入日曆</div>
     </div>
   </div>
   <div class="platform-chips" style="margin-top:14px;">
@@ -454,18 +461,19 @@ function toICS(summary, dtstart, dtend, location, description) {
 }
 
 function downloadICS(filename, content) {
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  const ua = navigator.userAgent;
+  const isIOS = /iPad|iPhone|iPod/.test(ua);
   if (isIOS) {
-    // iOS Safari: use data URI so system recognises it as a calendar file
+    // iOS Safari: window.location triggers the system calendar import dialog
     const encoded = encodeURIComponent(content);
-    const dataUri = 'data:text/calendar;charset=utf-8,' + encoded;
-    window.open(dataUri, '_blank');
+    window.location.href = 'data:text/calendar;charset=utf-8,' + encoded;
   } else {
+    // Desktop: Blob download
     const blob = new Blob([content], { type: 'text/calendar;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url; a.download = filename; a.click();
-    URL.revokeObjectURL(url);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 }
 
@@ -692,7 +700,7 @@ function showResult(p, originalMsg) {
   html += `<hr class="divider">`;
 
   if (canGenICS) {
-    html += `<button class="btn btn-green" onclick="generateICS()">📅 下載 .ics 加入 iPhone 日曆</button>`;
+    html += `<button class="btn btn-green" onclick="generateICS()">📅 加入日曆</button>`;
   } else {
     html += `<div class="note-box" style="margin-top:0;">📅 無法自動生成日曆（日期或時間不完整）<br>請手動加入日曆，或向客人確認後重新解析。</div>`;
   }
@@ -732,6 +740,25 @@ function copyText() {
     const btn = event.target;
     btn.textContent = '✅ 已複製！';
     setTimeout(() => btn.textContent = '📋 複製整理後資訊', 2000);
+  });
+}
+
+// Detect Chrome on iOS and show banner
+(function() {
+  const ua = navigator.userAgent;
+  const isIOS = /iPad|iPhone|iPod/.test(ua);
+  const isChrome = /CriOS/.test(ua); // Chrome on iOS uses CriOS
+  if (isIOS && isChrome) {
+    document.getElementById('chromeBanner').style.display = 'block';
+    document.getElementById('currentUrl').textContent = window.location.href;
+  }
+})();
+
+function copyUrl() {
+  navigator.clipboard.writeText(window.location.href).then(() => {
+    const btn = event.target;
+    btn.textContent = '✅ 已複製！';
+    setTimeout(() => btn.textContent = '📋 複製網址', 2000);
   });
 }
 </script>
