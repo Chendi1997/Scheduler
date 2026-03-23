@@ -434,26 +434,33 @@ function getNextWeekday(dayName, timeStr) {
 }
 
 function toICS(summary, dtstart, dtend, location, description) {
-  const fmt = d => d.toISOString().replace(/[-:]/g,'').replace(/\.\d{3}/,'');
+  const pad = n => String(n).padStart(2,'0');
+  const fmtLocal = d => `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`;
+  const uid = `${Date.now()}-${Math.random().toString(36).slice(2)}@pokemon-hk`;
+  const esc = s => (s||'').replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\n/g,'\\n');
   return [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//Pokemon Reseller//HK//ZH',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    'PRODID:-//Pokemon Reseller HK//ZH',
     'BEGIN:VEVENT',
-    `DTSTART:${fmt(dtstart)}`,
-    `DTEND:${fmt(dtend)}`,
-    `SUMMARY:${summary}`,
-    `LOCATION:${location}`,
-    `DESCRIPTION:${description}`,
+    `UID:${uid}`,
+    `DTSTAMP:${fmtLocal(new Date())}`,
+    `DTSTART;TZID=Asia/Hong_Kong:${fmtLocal(dtstart)}`,
+    `DTEND;TZID=Asia/Hong_Kong:${fmtLocal(dtend)}`,
+    `SUMMARY:${esc(summary)}`,
+    `LOCATION:${esc(location)}`,
+    `DESCRIPTION:${esc(description)}`,
     'BEGIN:VALARM',
     'TRIGGER:-PT30M',
     'ACTION:DISPLAY',
-    'DESCRIPTION:交收提醒 - 30分鐘後',
+    'DESCRIPTION:交收提醒 - 30分鐘前',
     'END:VALARM',
     'BEGIN:VALARM',
     'TRIGGER:-PT60M',
     'ACTION:DISPLAY',
-    'DESCRIPTION:交收提醒 - 1小時後',
+    'DESCRIPTION:交收提醒 - 1小時前',
     'END:VALARM',
     'END:VEVENT',
     'END:VCALENDAR'
@@ -461,20 +468,21 @@ function toICS(summary, dtstart, dtend, location, description) {
 }
 
 function downloadICS(filename, content) {
-  const ua = navigator.userAgent;
-  const isIOS = /iPad|iPhone|iPod/.test(ua);
-  if (isIOS) {
-    // iOS Safari: window.location triggers the system calendar import dialog
-    const encoded = encodeURIComponent(content);
-    window.location.href = 'data:text/calendar;charset=utf-8,' + encoded;
-  } else {
-    // Desktop: Blob download
-    const blob = new Blob([content], { type: 'text/calendar;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
+  const blob = new Blob([content], { type: 'text/calendar;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  // window.open works in both iOS Safari and desktop browsers
+  const opened = window.open(url, '_blank');
+  if (!opened) {
+    // Popup blocked fallback: use anchor click
     const a = document.createElement('a');
-    a.href = url; a.download = filename; a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    a.href = url;
+    a.download = filename;
+    a.target = '_blank';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   }
+  setTimeout(() => URL.revokeObjectURL(url), 3000);
 }
 
 function localParseMessage(msg) {
