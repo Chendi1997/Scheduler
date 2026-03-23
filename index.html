@@ -454,11 +454,19 @@ function toICS(summary, dtstart, dtend, location, description) {
 }
 
 function downloadICS(filename, content) {
-  const blob = new Blob([content], { type: 'text/calendar;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = filename; a.click();
-  URL.revokeObjectURL(url);
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  if (isIOS) {
+    // iOS Safari: use data URI so system recognises it as a calendar file
+    const encoded = encodeURIComponent(content);
+    const dataUri = 'data:text/calendar;charset=utf-8,' + encoded;
+    window.open(dataUri, '_blank');
+  } else {
+    const blob = new Blob([content], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename; a.click();
+    URL.revokeObjectURL(url);
+  }
 }
 
 function localParseMessage(msg) {
